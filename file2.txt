@@ -128,3 +128,77 @@ resource "aws_eks_node_group" "eks_nodes" {
     aws_iam_role_policy_attachment.ecr_policy
   ]
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#installation game
+
+supermario-->c7i-flex.large-->select all in security-->launch
+sudo su
+apt update
+apt install docker.io
+usermode-aG docker ubuntu
+newgrp docker
+wget -O- https://apt.releases.hashicorp.com/gpg | 
+sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+
+echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] 
+https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee 
+/etc/apt/sources.list.d/hashicorp.list
+
+sudo apt update && sudo apt install terraform
+
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+apt install unzip -y
+unzip awscliv2.zip
+sudo ./aws/install
+
+sudo apt install curl -y
+curl -LO https://dl.k8s.io/release/$(curl -L 
+-s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl
+
+sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+------------
+IAM-->Role-->create Role --> EC2 -->Next--> Admin Access-->Next-->Name of role(Supermario-project-role)-->Create Role
+
+---Now Attach Role to EC2 machine---
+Right click on EC2 Instance-->security--> Modify IAM role-->click on Role
+
+--EC2 Instance----
+mkdir supermario
+cd supermario
+git clone https://github.com/akshu20791/supermario-game
+cd supermario-game
+cd EKS-TF --> ls -->nano main.tf--> change (node instance t2.medium to c7i-flex.large)
+
+-------------------S3-------------
+create bucket
+name the bucket(mariobucket)
+EC2 Instance-->vim backend.tf  //change the name to mariobucket
+
+terraform init
+terraform validate
+terraform plan
+terraform apply --auto-approve
+aws eks update-kubeconfig --name EKS_CLOUD --region us-east-1
+cd ..
+kubectl apply -f deployment.yaml
+kubectl apply -f service.yaml
+kubectl get all
+kubectl describe service mario-service
+copy load balance and paste in chrome
+
+
+
