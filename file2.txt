@@ -201,4 +201,94 @@ kubectl describe service mario-service
 copy load balance and paste in chrome
 
 
+#installation of grafana and prometheus
+create 2 instances -->[Docker-server, Grafana]
+In both the machines-->[sudo su,apt update]
+
+
+security->security group->edit inbounded rule
+
+add
+
+customTCP --> 3000 --> Anywhere-IPv4 --> 0.0.0.0/0
+customTCP --> 9090 --> Anywhere-IPv4 --> 0.0.0.0/0
+customTCP --> 9323 --> Anywhere-IPv4 --> 0.0.0.0/0
+customTCP --> 9100 --> Anywhere-IPv4 --> 0.0.0.0/0 // for CPU And RAM
+
+save
+
+
+------------------Grafana-----------------------
+wget https://dl.grafana.com/enterprise/release/grafana-enterprise-8.4.4.linux-amd64.tar.gz
+ls
+tar -zxvf grafana-enterprise-8.4.4.linux-amd64.tar.gz
+ls
+cd grafana-8.4.4
+./bin/grafana-server
+http://<Your Ip>:3000
+username:admin
+password:admin
+
+
+------------------Docker-service------------------------
+apt update 
+apt install docker.io -y
+service docker start
+docker run -dt  ubuntu 
+docker run -dt ubuntu
+wget https://github.com/prometheus/prometheus/releases/download/v2.34.0/prometheus-2.34.0.linux-amd64.tar.gz
+ls
+tar zxvf prometheus-2.34.0.linux-amd64.tar.gz
+ls
+cd prometheus-2.34.0.linux-amd64
+ls
+vi /etc/docker/daemon.json (press i)
+	{
+        "metrics-addr" : "0.0.0.0:9323",
+        "experimental" : true
+	}
+service docker restart
+http://<Your Ip>:9323/metrics [we can see docker stat(no use)]
+vi prometheus.yml
+	#after localhost 9090 add this
+	- job_name: "docker"
+	  static_configs:
+      		- targets: ["localhost:9323"]
+./prometheus (this will start the prometheus)
+http://<Your Ip>:9090(status-->target)
+
+-------------------Now open Grafana web tag-------------------
+click on setting --> Data Sources --> Add Data Source -->prometheus
+in http paste http://<Your Ip>:9090 -->scroll click on save & test
+
+click on Dashboard -->click create u r first dashboard --> Add a new panel
+in Metrice browser paste this : engine_daemon_container_states_containers{state="stopped"} 
+after that paste this : engine_daemon_container_states_containers{state="running"}
+
+click on + icon -->import
+id: 21040 -->load--> in prometheus select prometheus --> import
+
+-------------------------------------------------------------------------------------------------------------------------------------
+
+-------------------This is for CPU And RAM--------------------------------------------------------------------
+
+In cd prometheus-2.34.0.linux-amd64 do the following steps
+
+sudo wget https://github.com/prometheus/node_exporter/releases/download/v1.8.2/node_exporter-1.8.2.linux-amd64.tar.gz
+sudo tar xvfz node_exporter-*.*-amd64.tar.gz
+sudo rm node_exporter-1.8.2.linux-amd64.tar.gz
+cd node_exporter-1.8.2.linux-amd64
+sudo ./node_exporter > /dev/null 2>&1 &
+cd ..
+vi prometheus.yml
+	#after localhost 9323 add this
+	- job_name: "node-exprter"
+	  static_configs:
+      		- targets: ["localhost:9100"]
+./prometheus
+click on + icon -->import
+id: 1860 -->load--> in prometheus select prometheus --> import
+
+
+
 
