@@ -202,6 +202,7 @@ copy load balance and paste in chrome
 
 
 #installation of grafana and prometheus
+
 create 2 instances -->[Docker-server, Grafana]
 In both the machines-->[sudo su,apt update]
 
