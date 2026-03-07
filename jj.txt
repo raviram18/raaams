@@ -21,3 +21,157 @@ cat /var/lib/jenkins/secrets/initialAdminPassword
  
 # chmod 777 jenkins.sh
 # ./jenkins.sh
+
+
+
+
+#helm installation grafana and docker
+
+
+
+1.	AMI: Ubuntu 22.04 LTS (x86_64). 
+2.	Instance type: t3.small or larger. 
+3.	Storage: 20 GB gp3 (or more). 
+4.	IAM role: Attach a role with AdministratorAccess (or equivalent permissions). 
+5.	Security group: Allow inbound 22/tcp from your public IP. Outbound can remain open. 
+SSH from your local machine: 
+CREATE AN IAM ROLE WITH ADMINPERSMISSION SO YOU DONT HAVE TO CONFIGURE AWS MANUALLY 
+ 
+  
+ 
+Enable these ports 
+  
+Open terminal on you local machine where you key is stored: 
+And paste this after changing your key-pair name and changing public ip ssh -i "kuberadmin.pem" ubuntu@ec2-184-73-107-7.compute-1.amazonaws.com 
+ 
+ 
+  
+ 
+Update and install basic tools: 
+sudo apt-get update -y 
+sudo apt-get install -y unzip curl tar git 
+2.1 AWS CLI v2 eksctl 
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o awscliv2.zip unzip awscliv2.zip sudo ./aws/install aws --version 
+If using an IAM role, no configuration needed. Otherwise: 
+aws configure 
+# Enter Access Key, Secret, region (us-east-1), output (json) 
+  
+2.2 kubectl 
+KUBECTL_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt) curl -LO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" chmod +x kubectl sudo mv kubectl /usr/local/bin/ kubectl version --client 
+  
+2.3 curl -sL 
+"https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_Linux_a md64.tar.gz" | tar xz -C /tmp 
+sudo mv /tmp/eksctl /usr/local/bin/ eksctl version 
+  
+2.4 Helm v3 
+curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash helm version 
+  
+3)	Create EKS Cluster and Nodegroup 
+3.1	Create Cluster 
+eksctl create cluster \ --name observability6 \ 
+--region us-east-1 \ 
+--zones us-east-1a,us-east-1b \ 
+--without-nodegroup 
+  
+ 
+ 
+3.2 Associate OIDC Provider 
+eksctl utils associate-iam-oidc-provider \ 
+--region us-east-1 \ 
+--cluster observability6 \ 
+--approve 
+ 
+ 
+3.3 Add Private Nodegroup 
+ 
+eksctl create nodegroup \ 
+--cluster=observability6 \ 
+--region=us-east-1 \ 
+--name=observability5-ng-private \ 
+--node-type=t3.medium \ 
+--nodes-min=2 \ 
+--nodes-max=3 \ 
+--node-volume-size=20 \ 
+--managed \ 
+--node-private-networking 
+  
+3.4 Update Kubeconfig 
+ 
+aws eks update-kubeconfig --name observability6 --region us-east-1 kubectl get nodes 
+  
+Step 4: Verify Cluster & Nodes 
+kubectl get nodes 
+ 
+  
+  
+🔹 Step 5: Create Namespace 
+kubectl create ns monitoring 
+ 
+  
+🔹 Step 6: Install Monitoring Stack 
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts 
+ 
+helm repo update 
+ 
+vim custom_kube_prometheus_stack.yml 
+ 
+https://raw.githubusercontent.com/akshu20791/k8s-monitoring-using-prometheus/refs/heads/mai n/custom_kube_prometheus_stack.yml 
+here you will find yaml file. Copy the content and put it in yaml file with name  
+custom_kube_prometheus_stack.yml in current location where you will run helm command  
+ 
+helm upgrade --install monitoring 
+prometheus-community/kube-prometheus-stack \ 
+  -n monitoring \ 
+  -f ./custom_kube_prometheus_stack.yml 
+  
+ 
+  
+🔹 Step 7: Verify Pods 
+kubectl get pods -n monitoring 
+  
+ 
+  
+🔹 Step 8: Access Grafana 
+kubectl port-forward svc/monitoring-grafana -n monitoring 8080:80 
+--address 0.0.0.0 & 
+ 
+(here & is detach mode) 
+  
+Username : admin 
+Pswrd: prom-operator 
+ 
+Add data source 
+  
+ 
+Here this 18.209.34.127 is the ip address of the machine which you created in start (in which you are performing all the task) 
+Prometheus: 
+kubectl port-forward service/prometheus-operated -n monitoring 9090:9090 --address 0.0.0.0 & 
+ 
+(here & is detach mode) 
+Access: http://<bastion-public-ip>:9090 
+  
+Alertmanager: 
+kubectl port-forward service/alertmanager-operated -n monitoring 9093:9093 --address 0.0.0.0 & 
+ 
+(here & is detach mode) 
+Access: http://<bastion-public-ip>:9093 
+  
+ 
+Import dashboard 3662 
+ 
+ 
+  It will give you the dashboard: 
+  
+ 
+ 
+Clean UP 
+ 
+Uninstall helm chart: 
+helm uninstall monitoring --namespace monitoring 
+ 
+Delete namespace: 
+kubectl delete ns monitoring 
+ 
+Delete Cluster & everything else: 
+eksctl delete cluster --name observability5 
+ 
